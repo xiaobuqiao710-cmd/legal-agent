@@ -231,7 +231,9 @@ export function createAnalyst() {
         rule:
           `${byId.has('S-93') ? byId.get('S-93').source + byId.get('S-93').locator + '允许先行赔付并保留追偿权；' : ''}` +
           `${byId.has('S-95') ? byId.get('S-95').source + byId.get('S-95').locator + '规定特别代表人诉讼；' : ''}` +
-          `${byId.has('K-2') ? byId.get('K-2').locator + '确立交易因果关系的推定规则。' : ''}`,
+          // 引用司法解释时必须带**文件名**，不能只写条号 ——
+          // 只写"第四条第（一）项"会被误读成《证券法》第四条（实测输出中出现过这个歧义）。
+          `${byId.has('K-2') ? byId.get('K-2').source + byId.get('K-2').locator + '确立交易因果关系的推定规则。' : ''}`,
         application:
           '投资者侧应先评估交易因果关系能否成立（该要件由被告反证推翻），' +
           '再据受损规模选择单独诉讼、普通代表人诉讼或特别代表人诉讼；' +

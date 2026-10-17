@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>法律分析助手</title>
+<style>
+/* ---------------------------------------------------------------
+   设计说明
+   这是给法律人自己用的工具，不是展示品，所以：
+   · 不用渐变光晕、不用玻璃拟态 —— 长时间阅读文本，对比度和清晰度优先
+   · 色板克制：灰阶为主，只有一个强调色（蓝紫）用于交互态
+   · 正文字号偏大（15px）行高 1.75 —— 中文长文阅读的舒适区
+   · 深色浅色都支持，跟随系统
+   --------------------------------------------------------------- */
+
+:root {
+  --bg: #fbfbfd;
+  --bg-elev: #ffffff;
+  --bg-sub: #f2f2f5;
+  --text: #1d1d1f;
+  --text-2: #515154;
+  --text-3: #86868b;
+  --border: #d2d2d7;
+  --border-soft: #e8e8ed;
+  --accent: #4a48c8;
+  --accent-soft: #ececfb;
+  --ok: #1a7f45;
+  --ok-soft: #e6f4ec;
+  --warn: #9a6400;
+  --warn-soft: #fdf3e0;
+  --danger: #c0362c;
+  --danger-soft: #fdecea;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.04);
+  --radius: 10px;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --bg-elev: #1e1e23;
+    --bg-sub: #26262c;
+    --text: #f0f0f3;
+    --text-2: #b4b4bd;
+    --text-3: #7d7d88;
+    --border: #3a3a43;
+    --border-soft: #2c2c33;
+    --accent: #9b99ff;
+    --accent-soft: #26264a;
+    --ok: #5fce8e;
+    --ok-soft: #1a3526;
+    --warn: #e8b44a;
+    --warn-soft: #33290f;
+    --danger: #ff7b70;
+    --danger-soft: #3a1d1a;
+    --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ---------------- 顶栏 ---------------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+
+.topbar__title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.topbar__sub {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-sub);
+  padding: 3px;
+  border-radius: 8px;
+  margin-left: auto;
+}
+
+.tab {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: default;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  transition: background .15s, color .15s;
+}
+
+.tab:hover { color: var(--text); }
+
+.tab[aria-selected="true"] {
+  background: var(--bg-elev);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+
+/* ---------------- 主区域 ---------------- */
+main { flex: 1; overflow: hidden; display: flex; }
+
+.panel { display: none; flex: 1; overflow: hidden; }
+.panel[data-active="true"] { display: flex; }
+
+/* 左：输入 */
+.input-col {
+  width: 38%;
+  min-width: 300px;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+}
+
+.input-head {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.input-head h2 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+textarea {
+  flex: 1;
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 16px;
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.8;
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
+textarea::placeholder { color: var(--text-3); }
+
+.input-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+  transition: background .12s, opacity .12s, transform .06s;
+}
+
+.btn:hover { background: var(--bg-sub); }
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:active:not(:disabled) { transform: scale(.985); }
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn--primary { color: #16161a; }
+}
+
+.btn--primary:hover { opacity: .9; background: var(--accent); }
+
+.btn--sm { padding: 5px 12px; font-size: 12px; }
+
+.hint {
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-left: auto;
+}
+
+/* 右：输出 */
+.output-col { flex: 1; overflow-y: auto; background: var(--bg); }
+
+.empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--text-3);
+  padding: 40px;
+  text-align: center;
+}
+
+.empty__icon { font-size: 40px; opacity: .5; }
+.empty__title { font-size: 15px; color: var(--text-2); font-weight: 550; }
+.empty__text { font-size: 13px; line-height: 1.7; max-width: 380px; }
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  margin-top: 8px;
+}
+
+.example {
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.55;
+  transition: border-color .15s, background .15s;
+}
+
+.example:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+
+/* 结果区 */
+.result { padding: 24px 32px 60px; max-width: 820px; margin: 0 auto; }
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 550;
+  border: 1px solid transparent;
+}
+
+.status-bar--ok { background: var(--ok-soft); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 25%, transparent); }
+.status-bar--warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 25%, transparent); }
+.status-bar--danger { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 25%, transparent); }
+
+.section { margin-bottom: 28px; }
+
+.section__title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.material {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.material:last-child { border-bottom: none; }
+
+.material__id {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  height: fit-content;
+  margin-top: 2px;
+}
+
+.material__src { flex: 1; color: var(--text-2); }
+.material__core {
+  font-size: 10px;
+  color: var(--text-3);
+  background: var(--bg-sub);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  height: fit-content;
+  margin-top: 3px;
+}
+
+.issue {
+  padding: 14px 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+}
+
+.issue__head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.issue__id {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.issue__q { font-size: 14px; font-weight: 550; line-height: 1.6; flex: 1; }
+
+.conf {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.conf--high { background: var(--ok-soft); color: var(--ok); }
+.conf--mid { background: var(--warn-soft); color: var(--warn); }
+
+.issue__cites {
+  font-size: 12px;
+  color: var(--text-3);
+  font-family: var(--mono);
+}
+
+.draft-section {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.draft-section:last-child { border-bottom: none; }
+
+.draft-section h3 {
+  font-size: 15.5px;
+  font-weight: 620;
+  line-height: 1.55;
+  margin-bottom: 14px;
+  color: var(--text);
+}
+
+.draft-body {
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--text);
+}
+
+.draft-body p { margin-bottom: 12px; }
+.draft-body p:last-child { margin-bottom: none; }
+
+.draft-body .label-inline {
+  font-weight: 620;
+  color: var(--accent);
+  margin-right: 2px;
+}
+
+.finding {
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.65;
+  border-left: 3px solid;
+}
+
+.finding--blocker { background: var(--danger-soft); border-color: var(--danger); }
+.finding--major { background: var(--warn-soft); border-color: var(--warn); }
+.finding--minor { background: var(--bg-sub); border-color: var(--text-3); }
+
+.finding__fix { color: var(--text-2); font-size: 12.5px; margin-top: 4px; }
+
+.note {
+  margin-top: 32px;
+  padding: 14px 16px;
+  background: var(--bg-sub);
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-3);
+}
+
+/* 引注核验 */
+.check-result { padding: 24px 32px 60px; max-width: 820px; margin: 0 auto; }
+
+.check-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.check-item__icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+.check-item__body { flex: 1; }
+.check-item__raw { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.check-item__detail { color: var(--text-2); font-size: 12.5px; }
+.check-item__quote { color: var(--text-3); font-size: 12px; margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--border); }
+
+.summary {
+  display: flex;
+  gap: 20px;
+  padding: 14px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.summary__item { display: flex; gap: 6px; align-items: baseline; }
+.summary__n { font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.summary__label { color: var(--text-3); font-size: 11.5px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+.spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <div class="topbar__title">法律分析助手</div>
+    <div class="topbar__sub" id="corpusInfo">正在加载语料库…</div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="analyze">分析问题</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="check">核验引用</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="corpus">语料库</button>
+  </div>
+</header>
+
+<main>
+  <!-- 分析面板 -->
+  <section class="panel" data-active="true" data-panel="analyze">
+    <div class="input-col">
+      <div class="input-head"><h2>你的法律问题</h2></div>
+      <textarea id="questionInput" placeholder="例：公司未按规定披露重大担保事项，是否构成虚假陈述？投资者能否要求赔偿？
+
+把问题写得越具体，结果越好。可以一次问多个问题，用问号分开。"></textarea>
+      <div class="input-foot">
+        <button class="btn btn--primary" id="analyzeBtn">开始分析</button>
+        <button class="btn" id="clearBtn">清空</button>
+        <span class="hint">⌘ + Enter</span>
+      </div>
+    </div>
+    <div class="output-col" id="analyzeOutput">
+      <div class="empty">
+        <div class="empty__icon">§</div>
+        <div class="empty__title">在左边输入一个法律问题</div>
+        <div class="empty__text">四智能体流水线会依次完成检索、分析、写作、质检，产出一份带可核验引用的分析意见书。</div>
+        <div class="examples">
+          <button class="example">公司未按规定披露重大担保事项，是否构成虚假陈述？投资者能否要求赔偿？</button>
+          <button class="example">虚假陈述的责任主体有哪些？控股股东和董监高分别承担什么责任？</button>
+          <button class="example">证监会拟作出行政处罚，当事人有哪些从轻或减轻的情形？程序上要注意什么？</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 核验面板 -->
+  <section class="panel" data-panel="check">
+    <div class="input-col">
+      <div class="input-head"><h2>待核验的文字</h2></div>
+      <textarea id="checkInput" placeholder="把一段法律意见、分析文字粘贴到这里，它会找出其中所有「《法名》第X条」形式的引用，逐条判断是否真实存在。
+
+例：
+根据《证券法》第八十五条，信息披露义务人应当承担赔偿责任。另依《证券法》第九百九十九条……"></textarea>
+      <div class="input-foot">
+        <button class="btn btn--primary" id="checkBtn">核验引用</button>
+        <button class="btn" id="checkClearBtn">清空</button>
+      </div>
+    </div>
+    <div class="output-col" id="checkOutput">
+      <div class="empty">
+        <div class="empty__icon">✓</div>
+        <div class="empty__title">检查一份文书里的法条引用</div>
+        <div class="empty__text">这是本工具最实用的功能：把 AI 或自己写的内容贴进来，逐条核对引用的法条是否真实存在。编造的条号会被标红。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 语料库面板 -->
+  <section class="panel" data-panel="corpus">
+    <div class="output-col" style="padding: 24px 32px;" id="corpusOutput">
+      <div class="empty"><span class="spinner"></span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------------------------------------------------------------
+   与 Swift 外壳的桥接
+   所有法律逻辑都在 Node 里，这里只负责界面与调用。
+   --------------------------------------------------------------- */
+
+/* 全局的调用封装：由 Swift 注入 window.webkit.messageHandlers */
+function callEngine(payload) {
+  return new Promise((resolve, reject) => {
+    const id = Math.random().toString(36).slice(2);
+    window.__pending = window.__pending || {};
+    window.__pending[id] = { resolve, reject };
+    window.webkit.messageHandlers.engine.postMessage({ id, ...payload });
+  });
+}
+
+/* Swift 调用这个函数回传结果 */
+window.__engineResult = function (id, ok, data) {
+  const p = (window.__pending || {})[id];
+  if (!p) return;
+  delete window.__pending[id];
+  ok ? p.resolve(data) : p.reject(new Error(data));
+};
+
+/* ---------------- 标签切换 ---------------- */
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', 'false'));
+    tab.setAttribute('aria-selected', 'true');
+    const name = tab.dataset.tab;
+    document.querySelectorAll('.panel').forEach((p) => {
+      p.dataset.active = p.dataset.panel === name ? 'true' : 'false';
+    });
+    if (name === 'corpus') loadCorpus();
+  });
+});
+
+/* ---------------- 工具函数 ---------------- */
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+const STATUS_MAP = {
+  passed: ['ok', '✅ 通过质检，分析已完成'],
+  rejected: ['danger', '⛔ 质检否决：现有材料不足以支撑充分论证'],
+  escalated: ['warn', '⚠️ 已熔断转人工：对抗轮次用尽仍未达成一致'],
+  revise_limit: ['warn', '⚠️ 修改次数用尽，结论仍不达标'],
+  no_materials: ['danger', '⛔ 本地语料库中没有与本案相关的材料'],
+};
+
+function confClass(c) {
+  return c >= 0.75 ? 'conf--high' : 'conf--mid';
+}
+
+/* 把 IRAC 正文里的【规则】【适用】【结论】渲染成带样式的段落 */
+function renderDraftBody(body) {
+  return esc(body)
+    .split('\n\n')
+    .filter(Boolean)
+    .map((para) => {
+      const m = para.match(/^【(.+?)】([\s\S]*)$/);
+      if (m) {
+        return `<p><span class="label-inline">【${m[1]}】</span>${m[2].replace(/\n/g, '<br>')}</p>`;
+      }
+      return `<p>${para.replace(/\n/g, '<br>')}</p>`;
+    })
+    .join('');
+}
+
+/* ---------------- 分析 ---------------- */
+const analyzeInput = document.getElementById('questionInput');
+const analyzeOutput = document.getElementById('analyzeOutput');
+const analyzeBtn = document.getElementById('analyzeBtn');
+
+async function runAnalyze(question) {
+  const q = String(question ?? analyzeInput.value).trim();
+  if (!q) return;
+
+  analyzeBtn.disabled = true;
+  analyzeBtn.innerHTML = '<span class="spinner"></span> 分析中…';
+  analyzeOutput.innerHTML = '<div class="empty"><span class="spinner"></span><div class="empty__text" style="margin-top:12px">四智能体处理中…</div></div>';
+
+  try {
+    const r = await callEngine({ op: 'ask', question: q });
+    analyzeOutput.innerHTML = renderAnalyze(r);
+  } catch (e) {
+    analyzeOutput.innerHTML = `<div class="result"><div class="status-bar status-bar--danger">分析失败：${esc(e.message)}</div></div>`;
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = '开始分析';
+  }
+}
+
+function renderAnalyze(r) {
+  const [cls, text] = STATUS_MAP[r.status] || ['warn', '未知状态'];
+  const H = [];
+
+  H.push('<div class="result">');
+  H.push(`<div class="status-bar status-bar--${cls}">${text}</div>`);
+
+  if (r.status === 'no_materials') {
+    H.push('<div class="note">');
+    H.push('这不是故障，而是设计：该问题不在本地语料库覆盖范围内（证券法 / 行政处罚法 / 公司法），');
+    H.push('系统选择如实报告「没有相关材料」，而不是硬凑几条不相关条文。');
+    H.push('</div></div>');
+    return H.join('');
+  }
+
+  // 材料
+  const mats = r.materials || [];
+  if (mats.length) {
+    H.push('<div class="section"><div class="section__title">检索到的材料 · ' + mats.length + ' 条</div>');
+    for (const m of mats) {
+      H.push('<div class="material">');
+      H.push(`<span class="material__id">${esc(m.id)}</span>`);
+      H.push(`<span class="material__src">${esc(m.source)} ${esc(m.locator)}</span>`);
+      if (m.viaCoreProvision) H.push('<span class="material__core">核心</span>');
+      H.push('</div>');
+    }
+    H.push('</div>');
+  }
+
+  // 争点
+  const issues = r.issues || [];
+  if (issues.length) {
+    H.push('<div class="section"><div class="section__title">争点分析 · ' + issues.length + ' 个</div>');
+    for (const i of issues) {
+      H.push('<div class="issue">');
+      H.push('<div class="issue__head">');
+      H.push(`<span class="issue__id">${esc(i.id)}</span>`);
+      H.push(`<span class="issue__q">${esc(i.question)}</span>`);
+      H.push(`<span class="conf ${confClass(i.confidence)}">${i.confidence}</span>`);
+      H.push('</div>');
+      H.push(`<div class="issue__cites">${esc((i.cites || []).join(' · '))}</div>`);
+      H.push('</div>');
+    }
+    H.push('</div>');
+  }
+
+  // 文书
+  const sections = r.draft?.sections || [];
+  if (sections.length) {
+    H.push('<div class="section"><div class="section__title">法律分析意见书</div>');
+    for (const s of sections) {
+      H.push('<div class="draft-section">');
+      H.push(`<h3>${esc(s.heading)}</h3>`);
+      H.push(`<div class="draft-body">${renderDraftBody(s.body)}</div>`);
+      H.push('</div>');
+    }
+    H.push('</div>');
+  }
+
+  // 质检
+  if (r.qc) {
+    H.push('<div class="section"><div class="section__title">质检结论 · ' + esc(r.qc.verdict) + '</div>');
+    if (r.qc.findings?.length) {
+      for (const f of r.qc.findings) {
+        H.push(`<div class="finding finding--${esc(f.severity)}">`);
+        H.push(`<div><b>${esc(f.issueId)}</b> · ${esc(f.problem)}</div>`);
+        H.push(`<div class="finding__fix">修法：${esc(f.fix)}</div>`);
+        H.push('</div>');
+      }
+    } else {
+      H.push('<div class="finding finding--minor">未发现问题。</div>');
+    }
+    H.push('</div>');
+  }
+
+  H.push('<div class="note">');
+  H.push('<b>说明</b>：本结果由四智能体流水线生成，所有引用均可追溯到本地语料库。');
+  H.push('但它是<b>工作底稿，不构成法律意见</b>，须由执业律师核对原始材料后定稿。');
+  H.push('</div>');
+  H.push('</div>');
+  return H.join('');
+}
+
+analyzeBtn.addEventListener('click', () => runAnalyze());
+document.getElementById('clearBtn').addEventListener('click', () => {
+  analyzeInput.value = '';
+  analyzeInput.focus();
+});
+analyzeInput.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runAnalyze();
+});
+
+document.querySelectorAll('.example').forEach((b) => {
+  b.addEventListener('click', () => {
+    analyzeInput.value = b.textContent.trim();
+    runAnalyze();
+  });
+});
+
+/* ---------------- 核验 ---------------- */
+const checkInput = document.getElementById('checkInput');
+const checkOutput = document.getElementById('checkOutput');
+const checkBtn = document.getElementById('checkBtn');
+
+async function runCheck() {
+  const text = checkInput.value.trim();
+  if (!text) return;
+
+  checkBtn.disabled = true;
+  checkBtn.innerHTML = '<span class="spinner"></span> 核验中…';
+  checkOutput.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+
+  try {
+    const r = await callEngine({ op: 'check', text });
+    checkOutput.innerHTML = renderCheck(r);
+  } catch (e) {
+    checkOutput.innerHTML = `<div class="check-result"><div class="status-bar status-bar--danger">核验失败：${esc(e.message)}</div></div>`;
+  } finally {
+    checkBtn.disabled = false;
+    checkBtn.textContent = '核验引用';
+  }
+}
+
+const ICON = { verified: '✅', not_found: '❌', law_unknown: '❓', out_of_scope: '➖' };
+
+function renderCheck(r) {
+  const c = r.counts;
+  const H = ['<div class="check-result">'];
+
+  H.push('<div class="summary">');
+  H.push(`<div class="summary__item"><span class="summary__n">${c.total}</span><span class="summary__label">处引用</span></div>`);
+  H.push(`<div class="summary__item"><span class="summary__n" style="color:var(--ok)">${c.verified}</span><span class="summary__label">已核验</span></div>`);
+  H.push(`<div class="summary__item"><span class="summary__n" style="color:var(--danger)">${c.notFound}</span><span class="summary__label">未收录</span></div>`);
+  H.push(`<div class="summary__item"><span class="summary__n" style="color:var(--warn)">${c.lawUnknown + c.outOfScope}</span><span class="summary__label">无法核验</span></div>`);
+  H.push('</div>');
+
+  if (c.total === 0) {
+    H.push('<div class="empty__text">没有识别到任何「《法名》第X条」形式的引用。</div>');
+    H.push('</div>');
+    return H.join('');
+  }
+
+  for (const item of r.citations) {
+    H.push('<div class="check-item">');
+    H.push(`<span class="check-item__icon">${ICON[item.status]}</span>`);
+    H.push('<div class="check-item__body">');
+    H.push(`<div class="check-item__raw">${esc(item.raw)}</div>`);
+    H.push(`<div class="check-item__detail">${esc(item.detail)}</div>`);
+    if (item.quote && item.status === 'verified') {
+      H.push(`<div class="check-item__quote">${esc(item.quote.slice(0, 120))}…</div>`);
+    }
+    H.push('</div></div>');
+  }
+
+  H.push('<div class="note">');
+  H.push('<b>❌ 不等于「一定编造」</b> —— 它表示本地语料库未收录该条号，');
+  H.push('可能确实不存在，也可能只是超出收录范围，须人工核对原文。');
+  H.push('</div>');
+  H.push('</div>');
+  return H.join('');
+}
+
+checkBtn.addEventListener('click', runCheck);
+document.getElementById('checkClearBtn').addEventListener('click', () => {
+  checkInput.value = '';
+  checkInput.focus();
+});
+checkInput.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.Enter) runCheck();
+});
+
+/* ---------------- 语料库 ---------------- */
+let corpusLoaded = false;
+async function loadCorpus() {
+  if (corpusLoaded) return;
+  const out = document.getElementById('corpusOutput');
+  try {
+    const r = await callEngine({ op: 'corpus' });
+    corpusLoaded = true;
+    document.getElementById('corpusInfo').textContent = `本地语料库 · ${r.total} 条条文与案例`;
+
+    const KIND = { statute: '法律条文', case: '案例与司法解释', regulation: '规章', doctrine: '学理' };
+    const H = [];
+    for (const [kind, items] of Object.entries(r.byKind)) {
+      H.push(`<div class="section"><div class="section__title">${KIND[kind] || kind} · ${items.length} 条</div>`);
+      for (const m of items) {
+        H.push('<div class="material">');
+        H.push(`<span class="material__id">${esc(m.id)}</span>`);
+        H.push(`<span class="material__src">${esc(m.source)} ${esc(m.locator)}</span>`);
+        H.push('</div>');
+      }
+      H.push('</div>');
+    }
+    H.push('<div class="note">这些是检索 Agent 唯一可用的材料来源 —— 它不会编造语料库之外的条文。');
+    H.push('需要扩大覆盖范围，编辑项目里的 <code>lib/corpus.mjs</code>。</div>');
+    out.innerHTML = H.join('');
+  } catch (e) {
+    out.innerHTML = `<div class="status-bar status-bar--danger">${esc(e.message)}</div>`;
+  }
+}
+
+/* 启动时预热语料库信息 */
+loadCorpus();
+</script>
+</body>
+</html>

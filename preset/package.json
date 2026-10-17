@@ -1,0 +1,12 @@
+{
+  "name": "@local/dsh-legal-agent-preset",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "法律分析 Agent preset：法条引注核验 + 四智能体法律检索工作流",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

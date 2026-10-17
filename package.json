@@ -1,15 +1,39 @@
 {
   "name": "legal-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "四智能体法律检索工作流：结构化消息协议 + 每步门禁 + 对抗式审计 + 引注核验",
   "type": "module",
+  "bin": {
+    "legal-agent": "./cli.mjs"
+  },
+  "main": "./cli.mjs",
+  "files": [
+    "cli.mjs",
+    "lib/",
+    "agents/",
+    "cases/",
+    "tools/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "start": "node cli.mjs",
+    "ask": "node cli.mjs ask",
+    "check": "node cli.mjs check",
+    "list": "node cli.mjs list",
     "test": "node test/run.mjs",
     "report": "node test/report.mjs",
-    "smoke": "node test/smoke.mjs",
-    "check-cites": "node tools/check-cites.mjs"
+    "smoke": "node test/smoke.mjs"
   },
-  "keywords": ["legal-ai", "multi-agent", "citation-verification", "irac"],
+  "keywords": [
+    "legal-ai",
+    "multi-agent",
+    "citation-verification",
+    "irac",
+    "china-law"
+  ],
   "license": "MIT",
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }
