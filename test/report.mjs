@@ -1,0 +1,12 @@
+import { createOrchestrator } from '../lib/orchestrator.mjs';
+import { createRetriever, createAnalyst, createWriter, createQc } from '../agents/index.mjs';
+import { CASES } from '../cases/index.mjs';
+const r = await createOrchestrator({ retriever:createRetriever(), analyst:createAnalyst(), writer:createWriter(), qc:createQc() }).run(CASES[0]);
+console.log('status:', r.status);
+console.log('\n--- 检索语料 ---');
+for (const m of r.retrieval.materials) console.log(` [${m.id}] ${m.source} ${m.locator} (rel ${m.relevance})`);
+console.log('\n--- 争点 ---');
+for (const i of r.analysis.issues) console.log(` ${i.id} 置信${i.confidence} cites=[${i.cites}] :: ${i.question.slice(0,40)}`);
+console.log('\n--- 文书第一章 ---');
+console.log(r.draft.sections[0].heading);
+console.log(r.draft.sections[0].body);
